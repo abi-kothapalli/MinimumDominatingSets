@@ -53,7 +53,7 @@ def split_graphs(FILE_PATH):
                     if len(node_split) > 1:
                         node, neighbors = node_split
                     else:
-                        edge_list.append(f"{node} {node}")
+                        edge_list.append(f"{node[:-1]} {node[:-1]}")
                         continue
 
                     neighbors = neighbors.split(" ")
