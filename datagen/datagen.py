@@ -41,7 +41,7 @@ def graphSizes(minimum = 150, maximum = 500, step = 5):
 def generateGreedySolution(graph):
     return list(nx.algorithms.dominating.dominating_set(graph))
 
-def generateExactSolutions(graph, num_solutions = 3, show_messages=True):
+def generateExactSolutions(graph, num_solutions = 3, mute=False):
     prob = pulp.LpProblem("Minimum-Dominating-Set", pulp.LpMinimize)
     y = pulp.LpVariable.dicts("y", graph.nodes(), cat=pulp.LpBinary)
 
@@ -52,7 +52,11 @@ def generateExactSolutions(graph, num_solutions = 3, show_messages=True):
     solutions = []
 
     for i in range(num_solutions):
-        prob.solve(pulp.apis.PULP_CBC_CMD(msg=show_messages))
+
+        print(f"Working on solution number {i + 1}")
+        start = timeit.default_timer()
+
+        prob.solve(pulp.apis.COIN(msg=not mute))
         
         selected_vars = []
         for var in y:
@@ -60,6 +64,8 @@ def generateExactSolutions(graph, num_solutions = 3, show_messages=True):
                 selected_vars.append(var)
         
         solutions.append(selected_vars)
+
+        print(f"Found solution number {i + 1} in {timeit.default_timer() - start} seconds")
         
         # Add a new constraint to prevent same solution from being found again
         prob += (pulp.lpSum([y[var] for var in selected_vars]) <= len(selected_vars) - 1)
@@ -71,17 +77,15 @@ def generateExactSolutions(graph, num_solutions = 3, show_messages=True):
             
 def generate_dataset(args):
 
-    if args.size == 'small':
-        graph_sizes = graphSizes()
-        average_degrees = averageDegrees()
-        i = 1
-    elif args.size == 'large':
-        graph_sizes = graphSizes(500, 1000, 50)
-        average_degrees = [5, 10, 15, 20]
-        i = 10001
+    id = args.id
 
+    graph_sizes = graphSizes(args.nodes, args.maxNodes, args.nodeStep)
+    average_degrees = averageDegrees(args.degree, args.maxDegree, args.degreeStep)
+        
     for nodes in graph_sizes:
         for avg_degree in average_degrees:
+
+            print(f"Generating graph {id} with {nodes} nodes and {avg_degree} average degree")
             
             start_time = timeit.default_timer()
 
@@ -92,7 +96,7 @@ def generate_dataset(args):
 
             exact_start_time = timeit.default_timer()
 
-            exact_solutions = generateExactSolutions(graph, show_messages=False)
+            exact_solutions = generateExactSolutions(graph, mute=args.mute)
 
             end_time = timeit.default_timer()
 
@@ -124,19 +128,25 @@ def setup():
 
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("-s", "--size", type=str, default=None, help="Size range of the graphs")
+    parser.add_argument("-i", "--id", type=int, default=0, help="ID of the graph")
+    parser.add_argument("-n", "--nodes", type=int, default=150, help="Starting number of nodes in the graph")
+    parser.add_argument("-d", "--degree", type=int, default=5, help="Starting average degree of the graph")
+
+    parser.add_argument("-mn", "--maxNodes", type=int, default=500, help="Maximum number of nodes in the graph")
+    parser.add_argument("-md", "--maxDegree", type=int, default=15, help="Maximum average degree of the graph")
+
+    parser.add_argument("-ns", "--nodeStep", type=int, default=5, help="Step size for the number of nodes")
+    parser.add_argument("-ds", "--degreeStep", type=int, default=1, help="Step size for the average degree")
+
+    parser.add_argument("-m", "--mute", action='store_true')
+    parser.set_defaults(mute=False)
+
 
     args = parser.parse_args()
 
     for PATH in OUTPUT_PATHS:
         if not os.path.isdir(PATH):
             os.mkdir(os.path.join(os.getcwd(), PATH))
-
-    if not args.size:
-        args.size = 'small'
-
-    if args.size not in ['small', 'large']:
-        raise ValueError("Size must be either 'small' or 'large'")    
 
     return args
 
