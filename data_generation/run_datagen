@@ -1,0 +1,28 @@
+#!/bin/bash
+
+conda env create --name data-gen --file=environment.yml
+conda activate data-gen
+
+declare -i idNumber
+declare -i nodes
+declare -i degree
+
+idNumber=00000
+nodes=150
+degree=5
+
+while [ $nodes -le 500 ]
+do
+    python datagen.py -i $idNumber -n $nodes -mn $nodes -d $degree -md $degree -m
+    
+    idNumber=$((idNumber + 1))
+
+    if [ $degree -eq 15 ]
+    then
+        degree=5
+        nodes=$((nodes + 5))
+    else
+        degree=$((degree + 1))
+    fi
+
+done
