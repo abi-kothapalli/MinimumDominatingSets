@@ -11,6 +11,7 @@ import numpy as np
 import tensorflow as tf
 from gcn.utils import *
 from gcn.models import GCN_DEEP_DIVER
+from graph_methods import *
 
 RUN_NAME = "FINAL_RUN"
 N_bd = 32
@@ -70,57 +71,6 @@ def testingEvaluataion(features, support, placeholders):
     outs_val = sess.run([model.outputs_softmax], feed_dict=feed_dict_val)
     return (time.time() - t_test), outs_val[0]
 
-def getBestMDS(adj, predictions):
-    start = time.time()
-    g = nx.from_numpy_matrix(adj)
-
-    bestSolution = list(range(adj.shape[0]))
-    solution_sizes = []
-
-    for prediction in predictions.transpose():
-        potentialSolution = buildMDS(g, prediction)
-        bestSolution = potentialSolution if len(potentialSolution) < len(bestSolution) else bestSolution
-        solution_sizes.append(len(potentialSolution))
-    
-    return bestSolution, (time.time()-start), solution_sizes
-
-def buildMDS(g, prediction):
-    sortedNodes = sorted(enumerate(prediction), key=lambda x: x[1], reverse=True)
-    nodeOrder = [x[0] for x in sortedNodes]
-
-    # Build minimum dominating set using binary search
-    min = 0
-    max = len(nodeOrder) - 1
-    while min < max:
-        mid = (max + min) // 2
-        currSolution = nodeOrder[:mid+1]
-
-        if nx.algorithms.dominating.is_dominating_set(g, currSolution):
-            max = mid
-        else:
-            min = mid + 1
-
-    currSolution = nodeOrder[:min+1]
-    assert(min == max)
-    assert(nx.algorithms.dominating.is_dominating_set(g,currSolution))
-
-    # Prune the dominating set
-    while True:
-        remove = False
-
-        for i in range(len(currSolution) - 1, -1, -1):
-            newSolution = currSolution[:i] + currSolution[i+1:]
-
-            if nx.algorithms.dominating.is_dominating_set(g, newSolution):
-                remove = True
-                currSolution = newSolution
-                break
-
-        if not remove:
-            break
-    
-    return sorted(currSolution)
-
 # tuples stored as (gamma, greedy, GCN)
 testing_analysis = {}
 
@@ -131,10 +81,12 @@ for graph_size in np.arange(500, 1001, 10):
         adj = nx.adjacency_matrix(graph).todense()
 
         print(f"Generating greedy solution for graph of {graph_size} nodes and density {edge_prob}")
-        greedyStart = time.time()
-        tmpGreedy = list(nx.algorithms.dominating.dominating_set(graph))
-        greedyTime = time.time() - greedyStart
+        updatedGreedy, prunedGreedy, newGreedyTime = greedySolution(adj)
         print("Found greedy solution")
+
+        randomStart = time.time()
+        randomSize = len(buildRandomSolution(adj))
+        randomTime = time.time() - randomStart
 
         print(f"Getting GCN solutions")
         nn = adj.shape[0]
@@ -147,17 +99,49 @@ for graph_size in np.arange(500, 1001, 10):
 
         tmpRuntime, outs = testingEvaluataion(features, support, placeholders)
 
-        sol, totalTime, solution_sizes = getBestMDS(adj, outs)
+        sol, totalTime, solution_sizes, avgTime = getBestMDS(adj, outs)
+        runtime = time.time() - startTime
+
         print(f"Found GCN solutions")
+
+        combo = {}
+        medianCombo = {}
+        randTimes = []
+
+        greedyCombo = {}
+        medianGreedyCombo = {}
+        greedyTimes = []
+        for percent_random in np.concatenate((np.arange(0.7, 0.8501, 0.05), np.arange(0.86, 1.001, 0.01))):
+            randSol, randTime, randSizes = getCombos(adj, outs, percent_random)
+            greedySol, tmpGreedyTime, greedySizes = getPartialGreedy(adj, outs, percent_random)
+
+            combo[round(percent_random, 2)] = len(randSol)
+            medianCombo[round(percent_random, 2)] = median(randSizes)
+            randTimes.append(randTime)
+
+            greedyCombo[round(percent_random, 2)] = len(greedySol)
+            medianGreedyCombo[round(percent_random, 2)] = median(greedySizes)
+            greedyTimes.append(tmpGreedyTime)
 
         testing_analysis[f"{graph_size}_{edge_prob}"] = {
             'best': len(sol),
             'median': int(median(solution_sizes)),
-            'greedy': len(tmpGreedy),
-            'runtime': time.time() - startTime,
-            'greedy_time': greedyTime,
-            'all': solution_sizes
+            'greedy': updatedGreedy,
+            'pruned_greedy': prunedGreedy,
+            'random': randomSize,
+            'combo': combo,
+            'medianCombo': medianCombo,
+            'greedy_combo': greedyCombo,
+            'median_greedy_combo': medianGreedyCombo,
+            'runtime': runtime,
+            'total_prediction_time': totalTime,
+            'runtime_per_prediction': avgTime,
+            'greedy_time': newGreedyTime,
+            'random_time': randomTime,
+            'combo_times': randTimes,  
+            'greedy_combo_times': greedyTimes,
+            'all': solution_sizes,
         }
 
-        with open(f'final-extend-results.json', "w") as f:
+        with open(f'UPDATED-greedy-extend-results.json', "w") as f:
             json.dump(testing_analysis, f, indent=2)
