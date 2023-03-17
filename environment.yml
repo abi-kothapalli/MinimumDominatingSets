@@ -1,4 +1,4 @@
-name: tf_env
+name: dev
 channels:
   - defaults
   - conda-forge

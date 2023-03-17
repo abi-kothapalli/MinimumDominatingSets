@@ -16,7 +16,7 @@ All data that has already been generated can be found in the `data/` directory.
 
 To generate the Conda environment necessary to run the training script, first execute from the root directory
 
-    conda env create --name [env_name] --file=environments.yml
+    conda env create -n [env_name] -f environment.yml
 
 and then activate the environment using 
 
