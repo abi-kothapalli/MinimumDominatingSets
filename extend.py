@@ -66,10 +66,9 @@ if ckpt:
 
 # Define model evaluation function
 def testingEvaluataion(features, support, placeholders):
-    t_test = time.time()
     feed_dict_val = construct_feed_dict4pred(features, support, placeholders)
     outs_val = sess.run([model.outputs_softmax], feed_dict=feed_dict_val)
-    return (time.time() - t_test), outs_val[0]
+    return outs_val[0]
 
 # tuples stored as (gamma, greedy, GCN)
 testing_analysis = {}
@@ -77,71 +76,59 @@ testing_analysis = {}
 for graph_size in np.arange(500, 1001, 10):
     for edge_prob in [0.01, 0.015, 0.02]:
 
-        graph = nx.erdos_renyi_graph(graph_size, edge_prob)
-        adj = nx.adjacency_matrix(graph).todense()
+        g = nx.erdos_renyi_graph(graph_size, edge_prob)
+        adj = nx.adjacency_matrix(g).todense()
 
-        print(f"Generating greedy solution for graph of {graph_size} nodes and density {edge_prob}")
-        updatedGreedy, prunedGreedy, newGreedyTime = greedySolution(adj)
-        print("Found greedy solution")
-
-        randomStart = time.time()
-        randomSize = len(buildRandomSolution(adj))
-        randomTime = time.time() - randomStart
+        print(f"Generating greedy/random solution for graph of {graph_size} nodes and density {edge_prob}")
+        
+        greedySize, greedyTime = greedySolution(g)
+        randomSize, randomTime = randomSolution(g)
 
         print(f"Getting GCN solutions")
-        nn = adj.shape[0]
 
         startTime = time.time()
+        nn = adj.shape[0]
         features = np.ones([nn, N_bd])
         features = sp.lil_matrix(features)
         features = preprocess_features(features)
         support = simple_polynomials(adj, FLAGS.max_degree)
 
-        tmpRuntime, outs = testingEvaluataion(features, support, placeholders)
+        outs = testingEvaluataion(features, support, placeholders)
 
-        sol, totalTime, solution_sizes, avgTime = getBestMDS(adj, outs)
+        sol, solution_sizes, avgTime = getBestMDS(g, outs)
         runtime = time.time() - startTime
-
         print(f"Found GCN solutions")
 
-        combo = {}
-        medianCombo = {}
+
+        randCombo = {}
         randTimes = []
-
         greedyCombo = {}
-        medianGreedyCombo = {}
         greedyTimes = []
-        for percent_random in np.concatenate((np.arange(0.7, 0.8501, 0.05), np.arange(0.86, 1.001, 0.01))):
-            randSol, randTime, randSizes = getCombos(adj, outs, percent_random)
-            greedySol, tmpGreedyTime, greedySizes = getPartialGreedy(adj, outs, percent_random)
 
-            combo[round(percent_random, 2)] = len(randSol)
-            medianCombo[round(percent_random, 2)] = median(randSizes)
-            randTimes.append(randTime)
+        for percent_random in np.concatenate((np.arange(0.7, 0.8501, 0.05), np.arange(0.86, 1.001, 0.01))):
+            randSol, randComboTime = buildRandomCombo(g, outs, percent_random)
+            greedySol, greedyComboTime = buildGreedyCombo(g, outs, percent_random)
+
+            randCombo[round(percent_random, 2)] = len(randSol)
+            randTimes.append(randComboTime)
 
             greedyCombo[round(percent_random, 2)] = len(greedySol)
-            medianGreedyCombo[round(percent_random, 2)] = median(greedySizes)
-            greedyTimes.append(tmpGreedyTime)
+            greedyTimes.append(greedyComboTime)
 
         testing_analysis[f"{graph_size}_{edge_prob}"] = {
-            'best': len(sol),
-            'median': int(median(solution_sizes)),
-            'greedy': updatedGreedy,
-            'pruned_greedy': prunedGreedy,
+            'best_gcn': len(sol),
+            'gcn_solutions': solution_sizes,
+            'greedy': greedySize,
             'random': randomSize,
-            'combo': combo,
-            'medianCombo': medianCombo,
-            'greedy_combo': greedyCombo,
-            'median_greedy_combo': medianGreedyCombo,
-            'runtime': runtime,
-            'total_prediction_time': totalTime,
-            'runtime_per_prediction': avgTime,
-            'greedy_time': newGreedyTime,
+            'random_combos': randCombo,
+            'greedy_combos': greedyCombo,
+            'gcn_runtime_total': runtime,
+            'gcn_runtime_per_prediction': avgTime,
+            'greedy_time': greedyTime,
             'random_time': randomTime,
-            'combo_times': randTimes,  
+            'random_combo_times': randTimes,
             'greedy_combo_times': greedyTimes,
-            'all': solution_sizes,
         }
 
-        with open(f'UPDATED-greedy-extend-results.json', "w") as f:
+        with open(f'extend-results.json', "w") as f:
             json.dump(testing_analysis, f, indent=2)

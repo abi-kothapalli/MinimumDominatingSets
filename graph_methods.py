@@ -2,22 +2,64 @@ import time
 import random
 import networkx as nx
 from statistics import mean
+from collections import defaultdict
+import os
+
+def getSupports(g):
+
+    leaves = set()
+    supports = set()
+
+    for node in g:
+        if node in supports or node in leaves:
+            continue
+
+        if g.degree(node) == 0:
+            supports.add(node)
+        
+        if g.degree(node) == 1:
+            leaves.add(node)
+            supports.add(next(g.neighbors(node)))
+    
+    return list(supports)
 
 def pruneSet(currSolution, g):
     for i in range(len(currSolution) - 1, -1, -1):
-        # newSolution = currSolution[:i] + currSolution[i+1:]
-        currSolution[i], currSolution[-1] = currSolution[-1], currSolution[i]
-        tmp = currSolution.pop()
 
-        if not nx.algorithms.dominating.is_dominating_set(g, currSolution):
-            currSolution.append(tmp)
-                
+        remNode = currSolution[i]
+        isDominated =  False
+        neighborsDominated = True
+        for neigh in g.neighbors(remNode):
+            if neigh in currSolution:
+                # At least one neighbor must be in the solution if we are removing this node
+                isDominated = True
+            else:
+                # If neighbor not in solution, one of the neighbor's neighbors (other than the node being removed) must be in the solution
+                currDominated = False
+                for neigh2 in g.neighbors(neigh):
+                    if neigh2 == remNode:
+                        continue
+                    if neigh2 in currSolution:
+                        currDominated = True
+                        break
+                if not currDominated:
+                    neighborsDominated = False
+                    break
+
+        if isDominated and neighborsDominated:
+            currSolution[i], currSolution[-1] = currSolution[-1], currSolution[i]
+            currSolution.pop()
+
+        # currSolution[i], currSolution[-1] = currSolution[-1], currSolution[i]
+        # tmp = currSolution.pop()
+
+        # if not nx.algorithms.dominating.is_dominating_set(g, currSolution):
+        #     currSolution.append(tmp)
+
+    # TODO: Remove this check later  
     assert(nx.algorithms.dominating.is_dominating_set(g, currSolution))
 
-def getBestMDS(adj, predictions):
-    start = time.time()
-    g = nx.from_numpy_matrix(adj)
-
+def getBestMDS(g, predictions):
     bestSolution = list(g)
     solution_sizes = []
 
@@ -30,7 +72,7 @@ def getBestMDS(adj, predictions):
         solution_sizes.append(len(potentialSolution))
         runtimes.append(time.time() - tmpTime)
     
-    return bestSolution, (time.time()-start), solution_sizes, mean(runtimes)
+    return bestSolution, solution_sizes, mean(runtimes)
 
 def buildMDS(g, prediction):
     sortedNodes = sorted(zip(list(g), prediction), key=lambda x: x[1], reverse=True)
@@ -56,15 +98,13 @@ def buildMDS(g, prediction):
     
     return sorted(currSolution)
 
-def greedySolution(adj):
+def greedySolution(g):
     start_time = time.time()
-
-    g = nx.from_numpy_matrix(adj)
 
     dominatingSet = []
     dominatedNodes = set()
 
-    while not nx.algorithms.dominating.is_dominating_set(g, dominatingSet):
+    while len(dominatedNodes) < len(g):
         currNodes = []
         max_white_nodes = 0
         for v in g:
@@ -89,24 +129,45 @@ def greedySolution(adj):
             dominatedNodes.add(node)
             for adj_node in g.neighbors(node):
                 dominatedNodes.add(adj_node)
-    
-    greedySize = len(dominatingSet)
 
     # Prune the dominating set
     pruneSet(dominatingSet, g)
     
     assert(nx.algorithms.dominating.is_dominating_set(g, dominatingSet))
 
-    prunedGreedySize = len(dominatingSet)
+    greedySize = len(dominatingSet)
 
-    return greedySize, prunedGreedySize, time.time() - start_time
+    return greedySize, time.time() - start_time
 
+def randomSolution(g):
+    start_time = time.time()
 
-def getPartialGreedy(adj, predictions, percent_greedy = 0.5):
+    randomNodes = list(g)
+    random.shuffle(randomNodes)
+
+    min = 0
+    max = len(randomNodes) - 1
+    while min < max:
+        mid = (max + min) // 2
+        currSolution = randomNodes[:mid+1]
+
+        if nx.algorithms.dominating.is_dominating_set(g, currSolution):
+            max = mid
+        else:
+            min = mid + 1
+    
+    currSolution = randomNodes[:min+1]
+    assert(min == max)
+    assert(nx.algorithms.dominating.is_dominating_set(g,currSolution))
+
+    pruneSet(currSolution, g)
+    
+    return len(currSolution), time.time() - start_time
+
+def buildGreedyCombo(g, predictions, percent_greedy = 0.5):
     start = time.time()
-    g = nx.from_numpy_matrix(adj)
 
-    numNodes = adj.shape[0]
+    numNodes = len(g)
 
     dominatingSet = []
     dominatedNodes = set()
@@ -147,36 +208,10 @@ def getPartialGreedy(adj, predictions, percent_greedy = 0.5):
     
     return bestSolution, (time.time()-start), solution_sizes    
 
-def buildRandomSolution(adj):
-    g = nx.from_numpy_matrix(adj)
-    randomNodes = list(g)
-    random.shuffle(randomNodes)
-
-    min = 0
-    max = len(randomNodes) - 1
-    while min < max:
-        mid = (max + min) // 2
-        currSolution = randomNodes[:mid+1]
-
-        if nx.algorithms.dominating.is_dominating_set(g, currSolution):
-            max = mid
-        else:
-            min = mid + 1
-    
-    currSolution = randomNodes[:min+1]
-    assert(min == max)
-    assert(nx.algorithms.dominating.is_dominating_set(g,currSolution))
-
-    pruneSet(currSolution, g)
-    
-    return sorted(currSolution)
-
-
-def getCombos(adj, predictions, percent_random = 0.5):
+def buildRandomCombo(g, predictions, percent_random = 0.5):
     start = time.time()
-    g = nx.from_numpy_matrix(adj)
 
-    numNodes = adj.shape[0]
+    numNodes = len(g)
     randomNodes = list(g)
     random.shuffle(randomNodes)
 
@@ -230,3 +265,43 @@ def buildComboMDS(g, currNodes, prediction):
     pruneSet(currSolution, g)
     
     return sorted(currSolution)
+
+# DEPRECATED: Helper function to get real world graphs from Reddit dataset
+def get_real_graphs():
+    GRAPH_PATH = "./REDDIT-MULTI-5K"
+
+    def get_node_map():
+        node_map = [None]
+
+        with open(os.path.join(GRAPH_PATH, "REDDIT-MULTI-5K.graph_idx"), "r") as f:
+            for node_id, graph_id in enumerate(f, 1):
+                node_map.append(int(graph_id))
+
+        return node_map
+
+    def get_edge_lists(node_map = None):
+        if not node_map:
+            node_map = get_node_map()
+
+        edge_lists = defaultdict(list)
+
+        with open(os.path.join(GRAPH_PATH, "REDDIT-MULTI-5K.edges"), "r") as f:
+            for line in f:
+                n1, n2 = line.strip('\n').split(',')
+                edge_lists[node_map[int(n1)]].append(f"{n1} {n2}")
+
+        return edge_lists
+
+    def create_graphs(edge_lists = None):
+
+        if not edge_lists:
+            edge_lists = get_edge_lists()
+
+        graphs = {}
+
+        for graph_id in edge_lists:
+            graphs[graph_id] = nx.parse_edgelist(edge_lists[graph_id], nodetype=int)
+
+        return graphs
+
+    return create_graphs()

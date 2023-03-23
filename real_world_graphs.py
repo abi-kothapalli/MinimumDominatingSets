@@ -67,52 +67,11 @@ if ckpt:
     print('loaded '+ckpt.model_checkpoint_path)
     saver.restore(sess,ckpt.model_checkpoint_path)
 
-
-def get_real_graphs():
-    GRAPH_PATH = "./REDDIT-MULTI-5K"
-
-    def get_node_map():
-        node_map = [None]
-
-        with open(os.path.join(GRAPH_PATH, "REDDIT-MULTI-5K.graph_idx"), "r") as f:
-            for node_id, graph_id in enumerate(f, 1):
-                node_map.append(int(graph_id))
-
-        return node_map
-
-    def get_edge_lists(node_map = None):
-        if not node_map:
-            node_map = get_node_map()
-
-        edge_lists = defaultdict(list)
-
-        with open(os.path.join(GRAPH_PATH, "REDDIT-MULTI-5K.edges"), "r") as f:
-            for line in f:
-                n1, n2 = line.strip('\n').split(',')
-                edge_lists[node_map[int(n1)]].append(f"{n1} {n2}")
-
-        return edge_lists
-
-    def create_graphs(edge_lists = None):
-
-        if not edge_lists:
-            edge_lists = get_edge_lists()
-
-        graphs = {}
-
-        for graph_id in edge_lists:
-            graphs[graph_id] = nx.parse_edgelist(edge_lists[graph_id], nodetype=int)
-
-        return graphs
-
-    return create_graphs()
-
 # Define model evaluation function
 def testingEvaluataion(features, support, placeholders):
-    t_test = time.time()
     feed_dict_val = construct_feed_dict4pred(features, support, placeholders)
     outs_val = sess.run([model.outputs_softmax], feed_dict=feed_dict_val)
-    return (time.time() - t_test), outs_val[0]
+    return outs_val[0]
 
 # tuples stored as (gamma, greedy, GCN)
 testing_analysis = {}
@@ -130,55 +89,42 @@ with open(DATA_PATH) as f:
 for graph_id in data:
 
     adj = np.array(data[graph_id]["adj"])
+    g = nx.from_numpy_matrix(adj)
 
-    print(f"Generating greedy solution for {graph_id}")
-    updatedGreedy, prunedGreedy, newGreedyTime = greedySolution(adj)
+    print(f"Generating greedy/random solution for {graph_id}")
+    greedySize, greedyTime = greedySolution(g)
+    randomSize, randomTime = randomSolution(g)
     print("Found greedy solution")
 
-    randomStart = time.time()
-    randomSize = len(buildRandomSolution(adj))
-    randomTime = time.time() - randomStart
 
     print(f"Getting GCN solutions")
-    nn = adj.shape[0]
-
     startTime = time.time()
+    nn = adj.shape[0]
     features = np.ones([nn, N_bd])
     features = sp.lil_matrix(features)
     features = preprocess_features(features)
     support = simple_polynomials(adj, FLAGS.max_degree)
 
-    tmpRuntime, outs = testingEvaluataion(features, support, placeholders)
+    outs = testingEvaluataion(features, support, placeholders)
 
-    sol, totalTime, solution_sizes, avgTime = getBestMDS(adj, outs)
+    sol, solution_sizes, avgTime = getBestMDS(g, outs)
     runtime = time.time() - startTime
     print(f"Found GCN solutions")
 
-    # combo = {}
-    # medianCombo = {}
-    # randTimes = []
-    # for percent_random in [0.700, 0.800, 0.900, 0.95, 0.99, 1.000]:
-    #     randSol, randTime, randSizes = getCombos(adj, outs, percent_random)
-    #     combo[round(percent_random, 2)] = len(randSol)
-    #     medianCombo[round(percent_random, 2)] = median(randSizes)
-    #     randTimes.append(randTime)
+    # TODO (optional): Get combo solutions
 
     testing_analysis[graph_id] = {
         'size': data[graph_id]["n"],
         'gamma': data[graph_id]["gamma"],
-        'best': len(sol),
-        'pruned_greedy': prunedGreedy,
+        'best_gcn': len(sol),
+        'gcn_solutions': solution_sizes,
+        'greedy': greedySize,
         'random': randomSize,
-        # 'combo': combo,
-        # 'medianCombo': medianCombo,
         'gamma_time': data[graph_id]["runtime"],
-        'runtime': runtime,
-        'total_prediction_time': totalTime,
-        'runtime_per_prediction': avgTime,
-        'greedy_time': newGreedyTime,   
+        'gcn_runtime_total': runtime,
+        'gcn_runtime_per_prediction': avgTime,
+        'greedy_time': greedyTime,
         'random_time': randomTime,
-        # 'combo_times': randTimes,  
-        'all': solution_sizes,
     }
 
     with open(f'real-world-results-{sys.argv[1]}', "w") as f:

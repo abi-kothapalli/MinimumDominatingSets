@@ -174,10 +174,9 @@ for epoch in range(FLAGS.epochs):
 
 # Define model evaluation function
 def testingEvaluataion(features, support, placeholders):
-    t_test = time.time()
     feed_dict_val = construct_feed_dict4pred(features, support, placeholders)
     outs_val = sess.run([model.outputs_softmax], feed_dict=feed_dict_val)
-    return (time.time() - t_test), outs_val[0]
+    return outs_val[0]
 
 testing_path = "./test"
 test_mat_names = sorted(os.listdir(testing_path))
@@ -189,71 +188,57 @@ for test_mat_name in test_mat_names:
     mat_contents = sio.loadmat(testing_path+'/'+test_mat_name)
 
     adj = mat_contents['adj']
-
     g = nx.from_numpy_matrix(adj)
-
-    updatedGreedy, prunedGreedy, newGreedyTime = greedySolution(adj)
-
     gamma = mat_contents['gamma'][0][0]
 
-    randomStart = time.time()
-    randomSize = len(buildRandomSolution(adj))
-    randomTime = time.time() - randomStart
 
-    nn = adj.shape[0]
+    greedySize, greedyTime = greedySolution(g)
+    randomSize, randomTime = randomSolution(g)
 
     startTime = time.time()
+    nn = adj.shape[0]
     features = np.ones([nn, N_bd])
     features = sp.lil_matrix(features)
     features = preprocess_features(features)
     support = simple_polynomials(adj, FLAGS.max_degree)
 
-    tmpRuntime, outs = testingEvaluataion(features, support, placeholders)
+    outs = testingEvaluataion(features, support, placeholders)
 
-    sol, totalTime, solution_sizes, avgTime = getBestMDS(adj, outs)
+    sol, solution_sizes, avgTime = getBestMDS(g, outs)
     runtime = time.time() - startTime
 
-    combo = {}
-    medianCombo = {}
+    randCombo = {}
     randTimes = []
-
     greedyCombo = {}
-    medianGreedyCombo = {}
     greedyTimes = []
-    for percent_random in np.concatenate((np.arange(0.7, 0.8501, 0.05), np.arange(0.86, 1.001, 0.01))):
-        randSol, randTime, randSizes = getCombos(adj, outs, percent_random)
-        greedySol, tmpGreedyTime, greedySizes = getPartialGreedy(adj, outs, percent_random)
 
-        combo[round(percent_random, 2)] = len(randSol)
-        medianCombo[round(percent_random, 2)] = median(randSizes)
-        randTimes.append(randTime)
+    for percent_random in np.concatenate((np.arange(0.7, 0.8501, 0.05), np.arange(0.86, 1.001, 0.01))):
+        randSol, randComboTime = buildRandomCombo(g, outs, percent_random)
+        greedySol, greedyComboTime = buildGreedyCombo(g, outs, percent_random)
+
+        randCombo[round(percent_random, 2)] = len(randSol)
+        randTimes.append(randComboTime)
 
         greedyCombo[round(percent_random, 2)] = len(greedySol)
-        medianGreedyCombo[round(percent_random, 2)] = median(greedySizes)
-        greedyTimes.append(tmpGreedyTime)
+        greedyTimes.append(greedyComboTime)
 
     testing_analysis[test_mat_name] = {
         'gamma': int(gamma),
-        'best': len(sol),
-        'median': int(median(solution_sizes)),
-        'greedy': updatedGreedy,
-        'pruned_greedy': prunedGreedy,
+        'best_gcn': len(sol),
+        'gcn_solutions': solution_sizes,
+        'greedy': greedySize,
         'random': randomSize,
-        'combo': combo,
-        'medianCombo': medianCombo,
-        'greedy_combo': greedyCombo,
-        'median_greedy_combo': medianGreedyCombo,
-        'runtime': runtime,
-        'total_prediction_time': totalTime,
-        'runtime_per_prediction': avgTime,
-        'greedy_time': newGreedyTime,
+        'random_combos': randCombo,
+        'greedy_combos': greedyCombo,
+        'gcn_runtime_total': runtime,
+        'gcn_runtime_per_prediction': avgTime,
+        'greedy_time': greedyTime,
         'random_time': randomTime,
-        'combo_times': randTimes,
+        'random_combo_times': randTimes,
         'greedy_combo_times': greedyTimes,
-        'all': solution_sizes
     }
 
-    with open(f'UPDATED-greedy-results.json', "w") as f:
+    with open(f'test-results.json', "w") as f:
         json.dump(testing_analysis, f, indent=2)
 
     print(f"Finished {test_mat_name}")
