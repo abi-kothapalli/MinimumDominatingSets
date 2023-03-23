@@ -1,0 +1,175 @@
+import networkx as nx
+from graph_methods import getSupports, pruneSet
+import random
+import time
+
+def constructInitial(g):
+
+    supports = getSupports(g)
+    dominatingSet = supports[:]
+    dominatedNodes = set()
+
+    for node in dominatingSet:
+        dominatedNodes.add(node)
+        dominatedNodes.update(g.neighbors(node))
+
+    while len(dominatedNodes) < len(g):
+        currNodes = []
+        max_white_nodes = 0
+        for v in g:
+            if v in dominatingSet:
+                continue
+
+            white_count = 0
+            for u in g.neighbors(v):
+                if u not in dominatedNodes:
+                    white_count += 1
+            if v not in dominatedNodes:
+                white_count += 1
+            
+            if white_count == max_white_nodes:
+                currNodes.append(v)
+            elif white_count > max_white_nodes:
+                currNodes = [v]
+                max_white_nodes = white_count
+        
+        dominatingSet.extend(currNodes)
+        for node in currNodes:
+            dominatedNodes.add(node)
+            dominatedNodes.update(g.neighbors(node))
+
+    return pruneSet(dominatingSet, g), set(supports)
+
+def improvementUpdateStep(dominatingSet, supports, g):
+    
+    copySol = dominatingSet[:]
+    random.shuffle(copySol)
+
+    def findReplacement(node, dominatingSet):
+        solSet = set(dominatingSet)
+
+        subset = None
+        domination_num = 0
+        for neigh in g.neighbors(node):
+            if neigh in solSet:
+                domination_num += 1
+        # If no neighbors are dominators, must choose a neighbor
+        if domination_num == 0:
+            subset = set(g.neighbors(node))
+        
+        # Now find a replacement node
+        for neigh in g.neighbors(node):
+            domination_num = 0
+            for neigh2 in g.neighbors(neigh):
+                if neigh2 == node:
+                    continue
+                if neigh2 in solSet:
+                    domination_num += 1
+            if domination_num == 0:
+                if subset is None:
+                    subset = set(g.neighbors(neigh))
+                else:
+                    subset.intersection_update(set(g.neighbors(neigh)))
+
+        if node in subset:
+            subset.remove(node)
+        
+        if not subset:
+            return None
+        else:
+            return subset.pop()
+
+    for i in range(len(copySol)):
+        node = copySol[i]
+        if node in supports:
+            continue
+
+        replacement = findReplacement(node, dominatingSet)
+        if replacement is None:
+            continue
+
+        dominatingSet[i] = replacement
+        pruneSet(dominatingSet, g)
+        if len(dominatingSet) < len(copySol):
+            return True
+    return False
+
+def localImprovement(dominatingSet, supports, g):
+    while improvementUpdateStep(dominatingSet, supports, g):
+        pass
+    return dominatingSet
+
+def destruction(dominatingSet, supports, g, beta=0.2):
+
+    numNodesToRemove = beta * (len(dominatingSet) - len(supports))
+    removedNodes = 0
+
+    random.shuffle(dominatingSet)
+    idx = len(dominatingSet) - 1
+    while removedNodes < numNodesToRemove:
+        node = dominatingSet[idx]
+        if node in supports:
+            idx -= 1
+            continue
+
+        dominatingSet[idx], dominatingSet[-1] = dominatingSet[-1], dominatingSet[idx]
+        dominatingSet.pop()
+        removedNodes += 1
+        idx -= 1
+    
+    return dominatingSet        
+
+def constructSolution(dominatingSet, g):
+    dominatedNodes = set()
+
+    for node in dominatingSet:
+        dominatedNodes.add(node)
+        dominatedNodes.update(g.neighbors(node))
+
+    while len(dominatedNodes) < len(g):
+        currNodes = []
+        max_white_nodes = 0
+        for v in g:
+            if v in dominatingSet:
+                continue
+
+            white_count = 0
+            for u in g.neighbors(v):
+                if u not in dominatedNodes:
+                    white_count += 1
+            if v not in dominatedNodes:
+                white_count += 1
+            
+            if white_count == max_white_nodes:
+                currNodes.append(v)
+            elif white_count > max_white_nodes:
+                currNodes = [v]
+                max_white_nodes = white_count
+        
+        dominatingSet.extend(currNodes)
+        for node in currNodes:
+            dominatedNodes.add(node)
+            dominatedNodes.update(g.neighbors(node))
+
+    return pruneSet(dominatingSet, g)
+
+def iterativeGreedy(g, max_iter=200, beta=0.2, time_limit=600):
+    startTime = time.time()
+    dominatingSet, supports = constructInitial(g)
+    dominatingSet = localImprovement(dominatingSet, supports, g)
+
+    bestSol = len(dominatingSet)
+    numItersWithoutImprovement = 0
+
+    while numItersWithoutImprovement < max_iter and time.time() - startTime < time_limit:
+        dominatingSet = destruction(dominatingSet, supports, g, beta)
+        dominatingSet = constructSolution(dominatingSet, g)
+        dominatingSet = localImprovement(dominatingSet, supports, g)
+
+        if len(dominatingSet) < bestSol:
+            bestSol = len(dominatingSet)
+            numItersWithoutImprovement = 0
+        else:
+            numItersWithoutImprovement += 1
+
+    return dominatingSet
