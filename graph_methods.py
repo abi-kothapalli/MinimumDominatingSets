@@ -24,6 +24,9 @@ def getSupports(g):
     return list(supports)
 
 def pruneSet(currSolution, g):
+
+    assert nx.algorithms.dominating.is_dominating_set(g, currSolution), "Initial solution is not a dominating set"
+
     for i in range(len(currSolution) - 1, -1, -1):
 
         remNode = currSolution[i]
@@ -57,7 +60,7 @@ def pruneSet(currSolution, g):
         #     currSolution.append(tmp)
 
     # TODO: Remove this check later  
-    assert(nx.algorithms.dominating.is_dominating_set(g, currSolution))
+    assert nx.algorithms.dominating.is_dominating_set(g, currSolution)
 
 def getBestMDS(g, predictions):
     bestSolution = list(g)
@@ -206,7 +209,7 @@ def buildGreedyCombo(g, predictions, percent_greedy = 0.5):
         bestSolution = potentialSolution if len(potentialSolution) < len(bestSolution) else bestSolution
         solution_sizes.append(len(potentialSolution))
     
-    return bestSolution, (time.time()-start), solution_sizes    
+    return bestSolution, (time.time()-start)
 
 def buildRandomCombo(g, predictions, percent_random = 0.5):
     start = time.time()
@@ -235,7 +238,7 @@ def buildRandomCombo(g, predictions, percent_random = 0.5):
         bestSolution = potentialSolution if len(potentialSolution) < len(bestSolution) else bestSolution
         solution_sizes.append(len(potentialSolution))
     
-    return bestSolution, (time.time()-start), solution_sizes
+    return bestSolution, (time.time()-start)
 
 def buildComboMDS(g, currNodes, prediction):
     sortedNodes = sorted(enumerate(prediction), key=lambda x: x[1], reverse=True)

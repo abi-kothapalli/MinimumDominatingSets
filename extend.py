@@ -4,6 +4,7 @@ from __future__ import print_function
 import os
 import time
 from statistics import median
+import networkx as nx
 import json
 
 import scipy.io as sio
