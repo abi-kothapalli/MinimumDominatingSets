@@ -16,12 +16,11 @@ def getSupports(g):
 
         if g.degree(node) == 0:
             supports.add(node)
-        
-        if g.degree(node) == 1:
+        elif g.degree(node) == 1:
             leaves.add(node)
             supports.add(next(g.neighbors(node)))
     
-    return list(supports)
+    return supports
 
 def pruneSet(currSolution, g):
 
@@ -68,21 +67,27 @@ def getBestMDS(g, predictions):
 
     runtimes = []
 
+    supportNodes = getSupports(g)
+
     for prediction in predictions.transpose():
         tmpTime = time.time()
-        potentialSolution = buildMDS(g, prediction)
+        potentialSolution = buildMDS(g, prediction, supportNodes)
         bestSolution = potentialSolution if len(potentialSolution) < len(bestSolution) else bestSolution
         solution_sizes.append(len(potentialSolution))
         runtimes.append(time.time() - tmpTime)
     
     return bestSolution, solution_sizes, mean(runtimes)
 
-def buildMDS(g, prediction):
+def buildMDS(g, prediction, supportNodes):
     sortedNodes = sorted(zip(list(g), prediction), key=lambda x: x[1], reverse=True)
-    nodeOrder = [x[0] for x in sortedNodes]
+
+    nodeOrder = list(supportNodes)
+    for x in sortedNodes:
+        if x not in supportNodes:
+            nodeOrder.append(x[0])
 
     # Build minimum dominating set using binary search
-    min = 0
+    min = len(supportNodes) - 1
     max = len(nodeOrder) - 1
     while min < max:
         mid = (max + min) // 2

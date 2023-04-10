@@ -6,7 +6,7 @@ import time
 def constructInitial(g):
 
     supports = getSupports(g)
-    dominatingSet = supports[:]
+    dominatingSet = list(supports)
     dominatedNodes = set()
 
     for node in dominatingSet:
@@ -38,12 +38,14 @@ def constructInitial(g):
             dominatedNodes.add(node)
             dominatedNodes.update(g.neighbors(node))
 
-    return pruneSet(dominatingSet, g), set(supports)
+    pruneSet(dominatingSet, g)
+
+    return dominatingSet, set(supports)
 
 def improvementUpdateStep(dominatingSet, supports, g):
     
-    copySol = dominatingSet[:]
-    random.shuffle(copySol)
+    initSize = len(dominatingSet)
+    random.shuffle(dominatingSet)
 
     def findReplacement(node, dominatingSet):
         solSet = set(dominatingSet)
@@ -79,8 +81,8 @@ def improvementUpdateStep(dominatingSet, supports, g):
         else:
             return subset.pop()
 
-    for i in range(len(copySol)):
-        node = copySol[i]
+    for i in range(len(dominatingSet)):
+        node = dominatingSet[i]
         if node in supports:
             continue
 
@@ -90,7 +92,7 @@ def improvementUpdateStep(dominatingSet, supports, g):
 
         dominatingSet[i] = replacement
         pruneSet(dominatingSet, g)
-        if len(dominatingSet) < len(copySol):
+        if len(dominatingSet) < initSize:
             return True
     return False
 
@@ -99,7 +101,7 @@ def localImprovement(dominatingSet, supports, g):
         pass
     return dominatingSet
 
-def destruction(dominatingSet, supports, g, beta=0.2):
+def destruction(dominatingSet, supports, beta=0.2):
 
     numNodesToRemove = beta * (len(dominatingSet) - len(supports))
     removedNodes = 0
@@ -151,7 +153,8 @@ def constructSolution(dominatingSet, g):
             dominatedNodes.add(node)
             dominatedNodes.update(g.neighbors(node))
 
-    return pruneSet(dominatingSet, g)
+    pruneSet(dominatingSet, g)
+    return dominatingSet
 
 def iterativeGreedy(g, max_iter=200, beta=0.2, time_limit=600):
     startTime = time.time()
@@ -162,7 +165,7 @@ def iterativeGreedy(g, max_iter=200, beta=0.2, time_limit=600):
     numItersWithoutImprovement = 0
 
     while numItersWithoutImprovement < max_iter and time.time() - startTime < time_limit:
-        dominatingSet = destruction(dominatingSet, supports, g, beta)
+        dominatingSet = destruction(dominatingSet, supports, beta)
         dominatingSet = constructSolution(dominatingSet, g)
         dominatingSet = localImprovement(dominatingSet, supports, g)
 
@@ -172,4 +175,4 @@ def iterativeGreedy(g, max_iter=200, beta=0.2, time_limit=600):
         else:
             numItersWithoutImprovement += 1
 
-    return dominatingSet
+    return dominatingSet, time.time() - startTime

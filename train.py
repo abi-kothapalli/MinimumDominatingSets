@@ -13,6 +13,7 @@ import tensorflow as tf
 from gcn.utils import *
 from gcn.models import GCN_DEEP_DIVER
 from graph_methods import *
+from iterative_greedy import iterativeGreedy
 
 import networkx as nx
 
@@ -207,6 +208,8 @@ for test_mat_name in test_mat_names:
     sol, solution_sizes, avgTime = getBestMDS(g, outs)
     runtime = time.time() - startTime
 
+    IGSize, IGTime = iterativeGreedy(g)
+
     randCombo = {}
     randTimes = []
     greedyCombo = {}
@@ -225,6 +228,7 @@ for test_mat_name in test_mat_names:
     testing_analysis[test_mat_name] = {
         'gamma': int(gamma),
         'best_gcn': len(sol),
+        'iterative_greedy': len(IGSize),
         'gcn_solutions': solution_sizes,
         'greedy': greedySize,
         'random': randomSize,
@@ -232,6 +236,7 @@ for test_mat_name in test_mat_names:
         'greedy_combos': greedyCombo,
         'gcn_runtime_total': runtime,
         'gcn_runtime_per_prediction': avgTime,
+        'iterative_greedy_time': IGTime,
         'greedy_time': greedyTime,
         'random_time': randomTime,
         'random_combo_times': randTimes,

@@ -13,6 +13,7 @@ import tensorflow as tf
 from gcn.utils import *
 from gcn.models import GCN_DEEP_DIVER
 from graph_methods import *
+from iterative_greedy import iterativeGreedy
 
 RUN_NAME = "FINAL_RUN"
 N_bd = 32
@@ -100,6 +101,7 @@ for graph_size in np.arange(500, 1001, 10):
         runtime = time.time() - startTime
         print(f"Found GCN solutions")
 
+        IGSize, IGTime = iterativeGreedy(g)
 
         randCombo = {}
         randTimes = []
@@ -118,6 +120,7 @@ for graph_size in np.arange(500, 1001, 10):
 
         testing_analysis[f"{graph_size}_{edge_prob}"] = {
             'best_gcn': len(sol),
+            'iterative_greedy': len(IGSize),
             'gcn_solutions': solution_sizes,
             'greedy': greedySize,
             'random': randomSize,
@@ -125,6 +128,7 @@ for graph_size in np.arange(500, 1001, 10):
             'greedy_combos': greedyCombo,
             'gcn_runtime_total': runtime,
             'gcn_runtime_per_prediction': avgTime,
+            'iterative_greedy_time': IGTime,
             'greedy_time': greedyTime,
             'random_time': randomTime,
             'random_combo_times': randTimes,
