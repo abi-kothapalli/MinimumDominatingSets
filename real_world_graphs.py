@@ -15,6 +15,7 @@ import tensorflow as tf
 from gcn.utils import *
 from gcn.models import GCN_DEEP_DIVER
 from graph_methods import *
+from iterative_greedy import iterativeGreedy, IG_GCN
 
 RUN_NAME = "FINAL_RUN"
 N_bd = 32
@@ -73,15 +74,12 @@ def testingEvaluataion(features, support, placeholders):
     outs_val = sess.run([model.outputs_softmax], feed_dict=feed_dict_val)
     return outs_val[0]
 
-# tuples stored as (gamma, greedy, GCN)
 testing_analysis = {}
 
-# graphs = get_real_graphs()
-# sorted_graphs = sorted(graphs.values(), key=lambda x: len(x))
-
-PATH = "./../datasets/"
-assert(sys.argv[1].endswith(".json"))
-DATA_PATH = os.path.join(PATH, sys.argv[1])
+PATH = "./datasets/"
+file = sys.argv[1].split("/")[-1]
+assert(file.endswith(".json"))
+DATA_PATH = os.path.join(PATH, file)
 
 with open(DATA_PATH) as f:
     data = json.load(f)
@@ -92,12 +90,12 @@ for graph_id in data:
     g = nx.from_numpy_matrix(adj)
 
     print(f"Generating greedy/random solution for {graph_id}")
+        
     greedySize, greedyTime = greedySolution(g)
     randomSize, randomTime = randomSolution(g)
-    print("Found greedy solution")
-
 
     print(f"Getting GCN solutions")
+
     startTime = time.time()
     nn = adj.shape[0]
     features = np.ones([nn, N_bd])
@@ -111,21 +109,27 @@ for graph_id in data:
     runtime = time.time() - startTime
     print(f"Found GCN solutions")
 
-    # TODO (optional): Get combo solutions
+    IGSize, IGTime = iterativeGreedy(g)
+
+    IGGCNSize, IGGCNTime = IG_GCN(g, outs.transpose())
+
 
     testing_analysis[graph_id] = {
         'size': data[graph_id]["n"],
         'gamma': data[graph_id]["gamma"],
         'best_gcn': len(sol),
-        'gcn_solutions': solution_sizes,
+        'iterative_greedy': len(IGSize),
+        'ig_gcn': IGGCNSize,
         'greedy': greedySize,
         'random': randomSize,
         'gamma_time': data[graph_id]["runtime"],
         'gcn_runtime_total': runtime,
         'gcn_runtime_per_prediction': avgTime,
+        'iterative_greedy_time': IGTime,
+        'ig_gcn_time': IGGCNTime,
         'greedy_time': greedyTime,
         'random_time': randomTime,
     }
 
-    with open(f'real-world-results-{sys.argv[1]}', "w") as f:
+    with open(f'./real_world_results/real-world-results-{file}', "w") as f:
         json.dump(testing_analysis, f, indent=2)

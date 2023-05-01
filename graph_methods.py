@@ -58,20 +58,18 @@ def pruneSet(currSolution, g):
         # if not nx.algorithms.dominating.is_dominating_set(g, currSolution):
         #     currSolution.append(tmp)
 
-    # TODO: Remove this check later  
-    assert nx.algorithms.dominating.is_dominating_set(g, currSolution)
-
 def getBestMDS(g, predictions):
     bestSolution = list(g)
     solution_sizes = []
 
     runtimes = []
 
-    supportNodes = getSupports(g)
+    # supportNodes = getSupports(g)
+    # supportNodes = set()
 
     for prediction in predictions.transpose():
         tmpTime = time.time()
-        potentialSolution = buildMDS(g, prediction, supportNodes)
+        potentialSolution = buildMDS(g, prediction, set())
         bestSolution = potentialSolution if len(potentialSolution) < len(bestSolution) else bestSolution
         solution_sizes.append(len(potentialSolution))
         runtimes.append(time.time() - tmpTime)
@@ -87,7 +85,7 @@ def buildMDS(g, prediction, supportNodes):
             nodeOrder.append(x[0])
 
     # Build minimum dominating set using binary search
-    min = len(supportNodes) - 1
+    min = len(supportNodes)
     max = len(nodeOrder) - 1
     while min < max:
         mid = (max + min) // 2

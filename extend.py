@@ -13,7 +13,7 @@ import tensorflow as tf
 from gcn.utils import *
 from gcn.models import GCN_DEEP_DIVER
 from graph_methods import *
-from iterative_greedy import iterativeGreedy
+from iterative_greedy import iterativeGreedy, IG_GCN
 
 RUN_NAME = "FINAL_RUN"
 N_bd = 32
@@ -72,7 +72,6 @@ def testingEvaluataion(features, support, placeholders):
     outs_val = sess.run([model.outputs_softmax], feed_dict=feed_dict_val)
     return outs_val[0]
 
-# tuples stored as (gamma, greedy, GCN)
 testing_analysis = {}
 
 for graph_size in np.arange(500, 1001, 10):
@@ -103,6 +102,8 @@ for graph_size in np.arange(500, 1001, 10):
 
         IGSize, IGTime = iterativeGreedy(g)
 
+        IGGCNSize, IGGCNTime = IG_GCN(g, outs.transpose())
+
         randCombo = {}
         randTimes = []
         greedyCombo = {}
@@ -121,7 +122,8 @@ for graph_size in np.arange(500, 1001, 10):
         testing_analysis[f"{graph_size}_{edge_prob}"] = {
             'best_gcn': len(sol),
             'iterative_greedy': len(IGSize),
-            'gcn_solutions': solution_sizes,
+            'ig_gcn': IGGCNSize,
+            # 'gcn_solutions': solution_sizes,
             'greedy': greedySize,
             'random': randomSize,
             'random_combos': randCombo,
@@ -129,11 +131,12 @@ for graph_size in np.arange(500, 1001, 10):
             'gcn_runtime_total': runtime,
             'gcn_runtime_per_prediction': avgTime,
             'iterative_greedy_time': IGTime,
+            'ig_gcn_time': IGGCNTime,
             'greedy_time': greedyTime,
             'random_time': randomTime,
             'random_combo_times': randTimes,
             'greedy_combo_times': greedyTimes,
         }
 
-        with open(f'extend-results.json', "w") as f:
+        with open(f'final-extend-results.json', "w") as f:
             json.dump(testing_analysis, f, indent=2)

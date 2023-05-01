@@ -1,5 +1,5 @@
 import networkx as nx
-from graph_methods import getSupports, pruneSet
+from graph_methods import getSupports, pruneSet, buildMDS, buildComboMDS, getBestMDS
 import random
 import time
 
@@ -176,3 +176,33 @@ def iterativeGreedy(g, max_iter=200, beta=0.2, time_limit=600):
             numItersWithoutImprovement += 1
 
     return dominatingSet, time.time() - startTime
+
+
+def IG_GCN(g, predictions, max_iter=200, beta=0.2, time_limit=600):
+    num_preds = len(predictions)
+    idx = 1
+
+    startTime = time.time()
+    supports = getSupports(g)
+    dominatingSet, _, _ = getBestMDS(g, predictions.transpose())
+    bestSol = len(dominatingSet)
+
+    dominatingSet = localImprovement(dominatingSet, supports, g)
+    bestSol = min(bestSol, len(dominatingSet))
+
+    numItersWithoutImprovement = 0
+
+    while numItersWithoutImprovement < max_iter and time.time() - startTime < time_limit:
+        dominatingSet = destruction(dominatingSet, supports, beta)
+        dominatingSet = buildComboMDS(g, dominatingSet, predictions[idx])
+        dominatingSet = localImprovement(dominatingSet, supports, g)
+
+        idx = (idx + 1) % num_preds
+
+        if len(dominatingSet) < bestSol:
+            bestSol = len(dominatingSet)
+            numItersWithoutImprovement = 0
+        else:
+            numItersWithoutImprovement += 1
+
+    return bestSol, time.time() - startTime
