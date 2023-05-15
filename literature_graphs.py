@@ -1,10 +1,10 @@
 from __future__ import division
 from __future__ import print_function
 
-import sys
 import os
 import time
 import json
+from glob import glob
 
 import numpy as np
 import tensorflow as tf
@@ -12,6 +12,7 @@ from gcn.utils import *
 from gcn.models import GCN_DEEP_DIVER
 from graph_methods import *
 from iterative_greedy import iterativeGreedy, IG_GCN
+from util import read_adj_matrix
 
 RUN_NAME = "FINAL_RUN"
 N_bd = 32
@@ -72,18 +73,12 @@ def testingEvaluataion(features, support, placeholders):
 
 testing_analysis = {}
 
-PATH = "./datasets/"
-file = sys.argv[1].split("/")[-1]
-assert(file.endswith(".json"))
-DATA_PATH = os.path.join(PATH, file)
+for file in sorted(glob("datasets/LiteratureInstances/*.txt")):
 
-with open(DATA_PATH) as f:
-    data = json.load(f)
-
-for graph_id in data:
-
-    adj = np.array(data[graph_id]["adj"])
+    n, adj = read_adj_matrix(file)
     g = nx.from_numpy_matrix(adj)
+
+    graph_id = file.split("/")[-1]
 
     print(f"Generating greedy/random solution for {graph_id}")
         
@@ -111,14 +106,12 @@ for graph_id in data:
 
 
     testing_analysis[graph_id] = {
-        'size': data[graph_id]["n"],
-        'gamma': data[graph_id]["gamma"],
+        'size': n,
         'best_gcn': len(sol),
         'iterative_greedy': len(IGSize),
         'ig_gcn': IGGCNSize,
         'greedy': greedySize,
         'random': randomSize,
-        'gamma_time': data[graph_id]["runtime"],
         'gcn_runtime_total': runtime,
         'gcn_runtime_per_prediction': avgTime,
         'iterative_greedy_time': IGTime,
@@ -127,5 +120,5 @@ for graph_id in data:
         'random_time': randomTime,
     }
 
-    with open(f'./real_world_results/real-world-results-{file}', "w") as f:
+    with open(f'literature-results-old.json', "w") as f:
         json.dump(testing_analysis, f, indent=2)
