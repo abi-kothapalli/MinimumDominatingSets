@@ -8,17 +8,23 @@ def read_adj_matrix(file):
 
     with open(file, 'r') as f:
         n = int(f.readline())
+        idx = 0
 
-        while True:
+        while idx < n:
             line = f.readline()
 
             if line.isspace():
                 continue
-            
             if line.strip() == '-1':
                 break
 
-            adj_mat.append([int(x) for x in line.split()])
+            row = [int(x) for x in line.split()]
+
+            if len(row) != n:
+                continue
+
+            adj_mat.append(row)
+            idx += 1
         
     return n, np.array(adj_mat)
 

@@ -32,7 +32,7 @@ def pruneSet(currSolution, g):
         isDominated =  False
         neighborsDominated = True
         for neigh in g.neighbors(remNode):
-            if neigh in currSolution:
+            if neigh in currSolution and neigh != remNode:
                 # At least one neighbor must be in the solution if we are removing this node
                 isDominated = True
             else:
@@ -97,8 +97,8 @@ def buildMDS(g, prediction, supportNodes):
             min = mid + 1
 
     currSolution = nodeOrder[:min+1]
-    assert(min == max)
-    assert(nx.algorithms.dominating.is_dominating_set(g,currSolution))
+    assert min == max
+    assert nx.algorithms.dominating.is_dominating_set(g,currSolution)
 
     pruneSet(currSolution, g)
     
@@ -139,7 +139,7 @@ def greedySolution(g):
     # Prune the dominating set
     pruneSet(dominatingSet, g)
     
-    assert(nx.algorithms.dominating.is_dominating_set(g, dominatingSet))
+    assert nx.algorithms.dominating.is_dominating_set(g, dominatingSet)
 
     greedySize = len(dominatingSet)
 
@@ -163,8 +163,8 @@ def randomSolution(g):
             min = mid + 1
     
     currSolution = randomNodes[:min+1]
-    assert(min == max)
-    assert(nx.algorithms.dominating.is_dominating_set(g,currSolution))
+    assert min == max
+    assert nx.algorithms.dominating.is_dominating_set(g,currSolution)
 
     pruneSet(currSolution, g)
     
@@ -264,8 +264,8 @@ def buildComboMDS(g, currNodes, prediction):
             min = mid + 1
 
     currSolution = nodeOrder[:min+1] + currNodes
-    # assert(min == max, f"min is {min} and max is {max}")
-    assert(nx.algorithms.dominating.is_dominating_set(g,currSolution))
+    assert min == max, f"min is {min} and max is {max}"
+    assert nx.algorithms.dominating.is_dominating_set(g,currSolution)
 
     # Prune the dominating set
     pruneSet(currSolution, g)

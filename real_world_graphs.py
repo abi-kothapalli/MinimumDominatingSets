@@ -74,7 +74,7 @@ testing_analysis = {}
 
 PATH = "./datasets/"
 file = sys.argv[1].split("/")[-1]
-assert(file.endswith(".json"))
+assert file.endswith(".json")
 DATA_PATH = os.path.join(PATH, file)
 
 with open(DATA_PATH) as f:
