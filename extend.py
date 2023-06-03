@@ -74,10 +74,17 @@ def testingEvaluataion(features, support, placeholders):
 
 testing_analysis = {}
 
-for graph_size in np.arange(500, 1001, 10):
+graph_model = 0 # Use 0 for binomial (Erdos-Renyi) or 1 for scale-free (Barabasi-Albert)
+output_filename = "test-results.json"
+
+for graph_size in np.arange(250, 1001, 10):
     for edge_prob in [0.01, 0.015, 0.02]:
 
-        g = nx.erdos_renyi_graph(graph_size, edge_prob)
+        if graph_model == 0:
+            g = nx.erdos_renyi_graph(graph_size, edge_prob)
+        else:
+            g = nx.barabasi_albert_graph(graph_size, int((graph_size - 1) * edge_prob / 2))
+
         adj = nx.adjacency_matrix(g).todense()
 
         print(f"Generating greedy/random solution for graph of {graph_size} nodes and density {edge_prob}")
@@ -104,39 +111,20 @@ for graph_size in np.arange(500, 1001, 10):
 
         IGGCNSize, IGGCNTime = IG_GCN(g, outs.transpose())
 
-        randCombo = {}
-        randTimes = []
-        greedyCombo = {}
-        greedyTimes = []
-
-        for percent_random in np.concatenate((np.arange(0.7, 0.8501, 0.05), np.arange(0.86, 1.001, 0.01))):
-            randSol, randComboTime = buildRandomCombo(g, outs, percent_random)
-            greedySol, greedyComboTime = buildGreedyCombo(g, outs, percent_random)
-
-            randCombo[round(percent_random, 2)] = len(randSol)
-            randTimes.append(randComboTime)
-
-            greedyCombo[round(percent_random, 2)] = len(greedySol)
-            greedyTimes.append(greedyComboTime)
-
         testing_analysis[f"{graph_size}_{edge_prob}"] = {
             'best_gcn': len(sol),
             'iterative_greedy': len(IGSize),
             'ig_gcn': IGGCNSize,
-            # 'gcn_solutions': solution_sizes,
+            'gcn_solutions': solution_sizes,
             'greedy': greedySize,
             'random': randomSize,
-            'random_combos': randCombo,
-            'greedy_combos': greedyCombo,
             'gcn_runtime_total': runtime,
             'gcn_runtime_per_prediction': avgTime,
             'iterative_greedy_time': IGTime,
             'ig_gcn_time': IGGCNTime,
             'greedy_time': greedyTime,
             'random_time': randomTime,
-            'random_combo_times': randTimes,
-            'greedy_combo_times': greedyTimes,
         }
 
-        with open(f'final-extend-results.json', "w") as f:
+        with open(output_filename, "w") as f:
             json.dump(testing_analysis, f, indent=2)
