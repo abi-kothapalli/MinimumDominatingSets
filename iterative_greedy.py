@@ -1,5 +1,4 @@
-import networkx as nx
-from graph_methods import getSupports, pruneSet, buildMDS, buildComboMDS, getBestMDS
+from graph_methods import getSupports, pruneSet, buildComboMDS, getBestMDS
 import random
 import time
 
@@ -176,7 +175,6 @@ def iterativeGreedy(g, max_iter=200, beta=0.2, time_limit=600):
             numItersWithoutImprovement += 1
 
     return dominatingSet, time.time() - startTime
-
 
 def IG_GCN(g, predictions, max_iter=200, beta=0.2, time_limit=600):
     num_preds = len(predictions)
