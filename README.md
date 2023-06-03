@@ -1,4 +1,4 @@
-# MinimumDominatingSets
+# Learning-Based Heuristic for Combinatorial Optimization of the Minimum Dominating Set Problem using Graph Convolutional Networks
 
 ## Data Generation
 
