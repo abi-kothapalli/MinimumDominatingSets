@@ -72,12 +72,9 @@ def testingEvaluataion(features, support, placeholders):
 
 testing_analysis = {}
 
-PATH = "./datasets/"
-file = sys.argv[1].split("/")[-1]
-assert file.endswith(".json")
-DATA_PATH = os.path.join(PATH, file)
-
-with open(DATA_PATH) as f:
+data_dir = "./datasets/path-to-dataset.json"
+file = data_dir.split("/")[-1]
+with open(data_dir) as f:
     data = json.load(f)
 
 for graph_id in data:
@@ -109,9 +106,8 @@ for graph_id in data:
 
     IGGCNSize, IGGCNTime = IG_GCN(g, outs.transpose())
 
-
     testing_analysis[graph_id] = {
-        'size': data[graph_id]["n"],
+        'size': len(g),
         'gamma': data[graph_id]["gamma"],
         'best_gcn': len(sol),
         'iterative_greedy': len(IGSize),
@@ -127,5 +123,5 @@ for graph_id in data:
         'random_time': randomTime,
     }
 
-    with open(f'./real_world_results/real-world-results-{file}', "w") as f:
+    with open(f'real-world-results-{file}', "w") as f:
         json.dump(testing_analysis, f, indent=2)
