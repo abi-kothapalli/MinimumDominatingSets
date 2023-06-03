@@ -72,7 +72,7 @@ def testingEvaluataion(features, support, placeholders):
 
 testing_analysis = {}
 
-data_dir = "./datasets/path-to-dataset.json"
+data_dir = "./real-world-datasets/path-to-dataset.json"
 file = data_dir.split("/")[-1]
 with open(data_dir) as f:
     data = json.load(f)
