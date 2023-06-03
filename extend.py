@@ -75,7 +75,7 @@ def testingEvaluataion(features, support, placeholders):
 testing_analysis = {}
 
 graph_model = 0 # Use 0 for binomial (Erdos-Renyi) or 1 for scale-free (Barabasi-Albert)
-output_filename = "test-results.json"
+output_filename = "test-synthetic-results.json"
 
 for graph_size in np.arange(250, 1001, 10):
     for edge_prob in [0.01, 0.015, 0.02]:
