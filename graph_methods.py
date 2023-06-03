@@ -52,20 +52,11 @@ def pruneSet(currSolution, g):
             currSolution[i], currSolution[-1] = currSolution[-1], currSolution[i]
             currSolution.pop()
 
-        # currSolution[i], currSolution[-1] = currSolution[-1], currSolution[i]
-        # tmp = currSolution.pop()
-
-        # if not nx.algorithms.dominating.is_dominating_set(g, currSolution):
-        #     currSolution.append(tmp)
-
 def getBestMDS(g, predictions):
     bestSolution = list(g)
     solution_sizes = []
 
     runtimes = []
-
-    # supportNodes = getSupports(g)
-    # supportNodes = set()
 
     for prediction in predictions.transpose():
         tmpTime = time.time()
@@ -271,43 +262,3 @@ def buildComboMDS(g, currNodes, prediction):
     pruneSet(currSolution, g)
     
     return sorted(currSolution)
-
-# DEPRECATED: Helper function to get real world graphs from Reddit dataset
-def get_real_graphs():
-    GRAPH_PATH = "./REDDIT-MULTI-5K"
-
-    def get_node_map():
-        node_map = [None]
-
-        with open(os.path.join(GRAPH_PATH, "REDDIT-MULTI-5K.graph_idx"), "r") as f:
-            for node_id, graph_id in enumerate(f, 1):
-                node_map.append(int(graph_id))
-
-        return node_map
-
-    def get_edge_lists(node_map = None):
-        if not node_map:
-            node_map = get_node_map()
-
-        edge_lists = defaultdict(list)
-
-        with open(os.path.join(GRAPH_PATH, "REDDIT-MULTI-5K.edges"), "r") as f:
-            for line in f:
-                n1, n2 = line.strip('\n').split(',')
-                edge_lists[node_map[int(n1)]].append(f"{n1} {n2}")
-
-        return edge_lists
-
-    def create_graphs(edge_lists = None):
-
-        if not edge_lists:
-            edge_lists = get_edge_lists()
-
-        graphs = {}
-
-        for graph_id in edge_lists:
-            graphs[graph_id] = nx.parse_edgelist(edge_lists[graph_id], nodetype=int)
-
-        return graphs
-
-    return create_graphs()
