@@ -2,45 +2,6 @@ from graph_methods import getSupports, pruneSet, buildComboMDS, getBestMDS
 import random
 import time
 
-def constructInitial(g):
-
-    supports = getSupports(g)
-    dominatingSet = list(supports)
-    dominatedNodes = set()
-
-    for node in dominatingSet:
-        dominatedNodes.add(node)
-        dominatedNodes.update(g.neighbors(node))
-
-    while len(dominatedNodes) < len(g):
-        currNodes = []
-        max_white_nodes = 0
-        for v in g:
-            if v in dominatingSet:
-                continue
-
-            white_count = 0
-            for u in g.neighbors(v):
-                if u not in dominatedNodes:
-                    white_count += 1
-            if v not in dominatedNodes:
-                white_count += 1
-            
-            if white_count == max_white_nodes:
-                currNodes.append(v)
-            elif white_count > max_white_nodes:
-                currNodes = [v]
-                max_white_nodes = white_count
-        
-        dominatingSet.extend(currNodes)
-        for node in currNodes:
-            dominatedNodes.add(node)
-            dominatedNodes.update(g.neighbors(node))
-
-    pruneSet(dominatingSet, g)
-
-    return dominatingSet, set(supports)
-
 def improvementUpdateStep(dominatingSet, supports, g):
     
     initSize = len(dominatingSet)
@@ -155,34 +116,13 @@ def constructSolution(dominatingSet, g):
     pruneSet(dominatingSet, g)
     return dominatingSet
 
-def iterativeGreedy(g, max_iter=200, beta=0.2, time_limit=600):
-    startTime = time.time()
-    dominatingSet, supports = constructInitial(g)
-    dominatingSet = localImprovement(dominatingSet, supports, g)
-
-    bestSol = len(dominatingSet)
-    numItersWithoutImprovement = 0
-
-    while numItersWithoutImprovement < max_iter and time.time() - startTime < time_limit:
-        dominatingSet = destruction(dominatingSet, supports, beta)
-        dominatingSet = constructSolution(dominatingSet, g)
-        dominatingSet = localImprovement(dominatingSet, supports, g)
-
-        if len(dominatingSet) < bestSol:
-            bestSol = len(dominatingSet)
-            numItersWithoutImprovement = 0
-        else:
-            numItersWithoutImprovement += 1
-
-    return dominatingSet, time.time() - startTime
-
-def IG_GCN(g, predictions, max_iter=200, beta=0.2, time_limit=600):
+def IG_GCN(g, predictions, max_iter=200, beta=0.2):
     num_preds = len(predictions)
     idx = 1
 
     startTime = time.time()
     supports = getSupports(g)
-    dominatingSet, _, _ = getBestMDS(g, predictions.transpose())
+    dominatingSet = getBestMDS(g, predictions.transpose())
     bestSol = len(dominatingSet)
 
     dominatingSet = localImprovement(dominatingSet, supports, g)
@@ -190,7 +130,7 @@ def IG_GCN(g, predictions, max_iter=200, beta=0.2, time_limit=600):
 
     numItersWithoutImprovement = 0
 
-    while numItersWithoutImprovement < max_iter and time.time() - startTime < time_limit:
+    while numItersWithoutImprovement < max_iter:
         dominatingSet = destruction(dominatingSet, supports, beta)
         dominatingSet = buildComboMDS(g, dominatingSet, predictions[idx])
         dominatingSet = localImprovement(dominatingSet, supports, g)
