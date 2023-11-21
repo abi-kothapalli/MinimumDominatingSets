@@ -7,13 +7,12 @@ from statistics import median
 import networkx as nx
 import json
 
-import scipy.io as sio
 import numpy as np
 import tensorflow as tf
 from gcn.utils import *
 from gcn.models import GCN_DEEP_DIVER
 from graph_methods import *
-from iterative_greedy import iterativeGreedy, IG_GCN
+from iterative_greedy import IG_GCN
 
 RUN_NAME = "FINAL_RUN"
 N_bd = 32
@@ -87,13 +86,6 @@ for graph_size in np.arange(250, 1001, 10):
 
         adj = nx.adjacency_matrix(g).todense()
 
-        print(f"Generating greedy/random solution for graph of {graph_size} nodes and density {edge_prob}")
-        
-        greedySize, greedyTime = greedySolution(g)
-        randomSize, randomTime = randomSolution(g)
-
-        print(f"Getting GCN solutions")
-
         startTime = time.time()
         nn = adj.shape[0]
         features = np.ones([nn, N_bd])
@@ -103,28 +95,20 @@ for graph_size in np.arange(250, 1001, 10):
 
         outs = testingEvaluataion(features, support, placeholders)
 
-        sol, solution_sizes, avgTime = getBestMDS(g, outs)
+        sol = getBestMDS(g, outs)
         runtime = time.time() - startTime
-        print(f"Found GCN solutions")
 
-        IGSize, IGTime = iterativeGreedy(g)
-
-        IGGCNSize, IGGCNTime = IG_GCN(g, outs.transpose())
+        ig_gcn_size, ig_gcn_time = IG_GCN(g, outs.transpose())
 
         testing_analysis[f"{graph_size}_{edge_prob}"] = {
-            'best_gcn': len(sol),
-            'iterative_greedy': len(IGSize),
-            'ig_gcn': IGGCNSize,
-            'gcn_solutions': solution_sizes,
-            'greedy': greedySize,
-            'random': randomSize,
-            'gcn_runtime_total': runtime,
-            'gcn_runtime_per_prediction': avgTime,
-            'iterative_greedy_time': IGTime,
-            'ig_gcn_time': IGGCNTime,
-            'greedy_time': greedyTime,
-            'random_time': randomTime,
+            'size': int(graph_size),
+            'gcn': len(sol),
+            'ig_gcn': ig_gcn_size,
+            'gcn_runtime': runtime,
+            'ig_gcn_runtime': ig_gcn_time,
         }
 
         with open(output_filename, "w") as f:
             json.dump(testing_analysis, f, indent=2)
+
+        print(f"Finished {graph_size}_{edge_prob}")

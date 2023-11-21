@@ -13,7 +13,7 @@ import tensorflow as tf
 from gcn.utils import *
 from gcn.models import GCN_DEEP_DIVER
 from graph_methods import *
-from iterative_greedy import iterativeGreedy, IG_GCN
+from iterative_greedy import IG_GCN
 
 import networkx as nx
 
@@ -27,7 +27,7 @@ flags = tf.app.flags
 FLAGS = flags.FLAGS
 flags.DEFINE_string('model', 'gcn_cheby', 'Model string.')  # 'gcn', 'gcn_cheby', 'dense'
 flags.DEFINE_float('learning_rate', 0.001, 'Initial learning rate.')
-flags.DEFINE_integer('epochs', 250, 'Number of epochs to train.')
+flags.DEFINE_integer('epochs', 1, 'Number of epochs to train.')
 flags.DEFINE_integer('hidden1', 32, 'Number of units in hidden layer 1.')
 flags.DEFINE_integer('diver_num', 32, 'Number of outputs.')
 flags.DEFINE_float('dropout', 0, 'Dropout rate (1 - keep probaNUmbility).')
@@ -189,11 +189,7 @@ for test_mat_name in test_mat_names:
 
     adj = mat_contents['adj']
     g = nx.from_numpy_matrix(adj)
-    gamma = mat_contents['gamma'][0][0]
-
-
-    greedySize, greedyTime = greedySolution(g)
-    randomSize, randomTime = randomSolution(g)
+    # gamma = mat_contents['gamma'][0][0]
 
     startTime = time.time()
     nn = adj.shape[0]
@@ -204,27 +200,18 @@ for test_mat_name in test_mat_names:
 
     outs = testingEvaluataion(features, support, placeholders)
 
-    sol, solution_sizes, avgTime = getBestMDS(g, outs)
+    sol = getBestMDS(g, outs)
     runtime = time.time() - startTime
 
-    IGSize, IGTime = iterativeGreedy(g)
-
-    IGGCNSize, IGGCNTime = IG_GCN(g, outs.transpose())
+    ig_gcn_size, ig_gcn_time = IG_GCN(g, outs.transpose())
 
     testing_analysis[test_mat_name] = {
-        'gamma': int(gamma),
-        'best_gcn': len(sol),
-        'iterative_greedy': len(IGSize),
-        'ig_gcn': IGGCNSize,
-        'gcn_solutions': solution_sizes,
-        'greedy': greedySize,
-        'random': randomSize,
-        'gcn_runtime_total': runtime,
-        'gcn_runtime_per_prediction': avgTime,
-        'iterative_greedy_time': IGTime,
-        'ig_gcn_time': IGGCNTime,
-        'greedy_time': greedyTime,
-        'random_time': randomTime,
+        'size': len(g),
+        # 'gamma': int(gamma),
+        'gcn': len(sol),
+        'ig_gcn': ig_gcn_size,
+        'gcn_runtime': runtime,
+        'ig_gcn_runtime': ig_gcn_time,
     }
 
     with open(f'test-results.json', "w") as f:
