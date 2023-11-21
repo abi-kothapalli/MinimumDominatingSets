@@ -1,7 +1,6 @@
 from __future__ import division
 from __future__ import print_function
 
-import sys
 import os
 import time
 import json
@@ -11,7 +10,7 @@ import tensorflow as tf
 from gcn.utils import *
 from gcn.models import GCN_DEEP_DIVER
 from graph_methods import *
-from iterative_greedy import iterativeGreedy, IG_GCN
+from iterative_greedy import IG_GCN
 
 RUN_NAME = "FINAL_RUN"
 N_bd = 32
@@ -82,13 +81,6 @@ for graph_id in data:
     adj = np.array(data[graph_id]["adj"])
     g = nx.from_numpy_matrix(adj)
 
-    print(f"Generating greedy/random solution for {graph_id}")
-        
-    greedySize, greedyTime = greedySolution(g)
-    randomSize, randomTime = randomSolution(g)
-
-    print(f"Getting GCN solutions")
-
     startTime = time.time()
     nn = adj.shape[0]
     features = np.ones([nn, N_bd])
@@ -98,29 +90,17 @@ for graph_id in data:
 
     outs = testingEvaluataion(features, support, placeholders)
 
-    sol, solution_sizes, avgTime = getBestMDS(g, outs)
+    sol = getBestMDS(g, outs)
     runtime = time.time() - startTime
-    print(f"Found GCN solutions")
 
-    IGSize, IGTime = iterativeGreedy(g)
-
-    IGGCNSize, IGGCNTime = IG_GCN(g, outs.transpose())
+    ig_gcn_size, ig_gcn_time = IG_GCN(g, outs.transpose())
 
     testing_analysis[graph_id] = {
         'size': len(g),
-        'gamma': data[graph_id]["gamma"],
-        'best_gcn': len(sol),
-        'iterative_greedy': len(IGSize),
-        'ig_gcn': IGGCNSize,
-        'greedy': greedySize,
-        'random': randomSize,
-        'gamma_time': data[graph_id]["runtime"],
-        'gcn_runtime_total': runtime,
-        'gcn_runtime_per_prediction': avgTime,
-        'iterative_greedy_time': IGTime,
-        'ig_gcn_time': IGGCNTime,
-        'greedy_time': greedyTime,
-        'random_time': randomTime,
+        'gcn': len(sol),
+        'ig_gcn': ig_gcn_size,
+        'gcn_runtime': runtime,
+        'ig_gcn_runtime': ig_gcn_time,
     }
 
     with open(f'real-world-results-{file}', "w") as f:
